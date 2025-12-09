@@ -54,10 +54,12 @@
 </div>
 
         <div class="card">
-          <h2>Usuarios y roles</h2>
-          <p>Gestiona cuentas de estudiantes, docentes y administradores.</p>
-          <button class="btn" disabled>Ir al módulo (próximamente)</button>
-        </div>
+  <h2>Pronóstico de recursos</h2>
+  <p>Analiza capacidad vs demanda futura por facultad.</p>
+  <router-link class="btn" to="/admin/pronostico">
+    Ir al módulo
+  </router-link>
+</div>
       </div>
 
       <!-- Opciones para ESTUDIANTE / DOCENTE -->

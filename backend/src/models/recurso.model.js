@@ -7,7 +7,17 @@ const RecursoSchema = new Schema(
 
     tipo: {
       type: String,
-      enum: ['PROYECTOR', 'COMPUTADORA', 'SPEAKER', 'OTRO'],
+      enum: [
+        'COMPUTADORA',
+        'PROYECTOR',
+        'AUDIO',        // parlantes, micrófonos
+        'VR',           // oculus, visores
+        'CONSOLA',      // PlayStation, Xbox, etc.
+        'KITS_LAB',     // arduino, kits de electrónica
+        'INSTRUMENTAL', // médico/lab
+        'MOBILIARIO',   // sillas especiales, mesas, etc.
+        'OTRO',
+      ],
       required: true,
     },
 
@@ -23,14 +33,12 @@ const RecursoSchema = new Schema(
       trim: true,
     },
 
-    // Recurso siempre pertenece a una facultad
     facultad: {
       type: Schema.Types.ObjectId,
       ref: 'Facultad',
       required: true,
     },
 
-    // Puede o no estar asignado a un espacio concreto
     espacio: {
       type: Schema.Types.ObjectId,
       ref: 'Espacio',

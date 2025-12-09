@@ -31,15 +31,14 @@
           </label>
 
           <label>
-            Tipo
-            <select v-model="filtros.tipo">
-              <option value="">Todos</option>
-              <option value="PROYECTOR">PROYECTOR</option>
-              <option value="COMPUTADORA">COMPUTADORA</option>
-              <option value="SPEAKER">SPEAKER</option>
-              <option value="OTRO">OTRO</option>
-            </select>
-          </label>
+  Tipo
+  <select v-model="filtros.tipo">
+    <option value="">Todos</option>
+    <option v-for="t in TIPOS_RECURSO" :key="t" :value="t">
+      {{ t }}
+    </option>
+  </select>
+</label>
 
           <label>
             Estado
@@ -122,14 +121,17 @@
             </label>
 
             <label>
-              Tipo
-              <select v-model="form.tipo" required>
-                <option value="PROYECTOR">PROYECTOR</option>
-                <option value="COMPUTADORA">COMPUTADORA</option>
-                <option value="SPEAKER">SPEAKER</option>
-                <option value="OTRO">OTRO</option>
-              </select>
-            </label>
+  Tipo
+  <select v-model="form.tipo" required>
+    <option
+      v-for="t in TIPOS_RECURSO"
+      :key="t"
+      :value="t"
+    >
+      {{ t }}
+    </option>
+  </select>
+</label>
 
             <label>
               Código Inventario
@@ -218,6 +220,8 @@ import {
   actualizarRecurso,
   eliminarRecurso as apiEliminarRecurso,
   type Recurso,
+  type TipoRecurso,
+  type FiltroRecursos,
 } from '../services/recursos.service';
 import { getFacultades, type Facultad } from '../services/facultades.service';
 import { getEspacios, type Espacio } from '../services/espacios.service';
@@ -232,7 +236,12 @@ const facultades = ref<Facultad[]>([]);
 const espaciosFiltro = ref<Espacio[]>([]);
 const espaciosForm = ref<Espacio[]>([]);
 
-const filtros = ref({
+const filtros = ref<{
+  facultad: string;
+  espacio: string;
+  tipo: TipoRecurso | '';
+  estado: string;
+}>({
   facultad: '',
   espacio: '',
   tipo: '',
@@ -255,6 +264,19 @@ const form = ref<Recurso>({
   estado: 'DISPONIBLE',
 });
 
+const TIPOS_RECURSO: TipoRecurso[] = [
+  'COMPUTADORA',
+  'PROYECTOR',
+  'AUDIO',
+  'VR',
+  'CONSOLA',
+  'KITS_LAB',
+  'INSTRUMENTAL',
+  'MOBILIARIO',
+  'OTRO',
+];
+
+
 // CARGAS BÁSICAS
 async function cargarFacultades() {
   try {
@@ -265,18 +287,16 @@ async function cargarFacultades() {
 }
 
 async function cargarRecursos() {
-  try {
-    const data: any[] = await getRecursos(filtros.value);
-    // Normalizar nombres de facultad y espacio para la tabla
-    recursos.value = data.map((r) => ({
-      ...r,
-      facultadNombre: r.facultad?.nombre ?? 'N/A',
-      espacioNombre: r.espacio?.nombre ?? (r.espacio ? '-' : 'Sin asignar'),
-    }));
-  } catch (err) {
-    console.error('Error al cargar recursos', err);
-  }
+  const filtrosApi: FiltroRecursos = {
+    facultad: filtros.value.facultad || undefined,
+    espacio: filtros.value.espacio || undefined,
+    estado: filtros.value.estado || undefined,
+    tipo: filtros.value.tipo || undefined, 
+  };
+
+  recursos.value = await getRecursos(filtrosApi);
 }
+
 
 async function cargarEspaciosPorFiltro() {
   try {

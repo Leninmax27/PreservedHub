@@ -10,6 +10,8 @@ import AdminMateriasView from '../views/AdminMateriasView.vue';
 import AdminEspaciosView from '../views/AdminEspaciosView.vue';
 import AdminRecursosView from '../views/AdminRecursosView.vue';
 import AdminReservasView from '../views/AdminReservasView.vue';
+import AdminPronosticoView from '../views/AdminPronosticoView.vue';
+
 
 
 
@@ -73,7 +75,14 @@ const routes = [
   name: 'admin-reservas',
   component: AdminReservasView,
   meta: { requiresAuth: true, requiresAdmin: true },
- },
+  },
+{
+  path: '/admin/pronostico',
+  name: 'admin-pronostico',
+  component: AdminPronosticoView,
+  meta: { requiresAuth: true, requiresAdmin: true },
+},
+
 
 
 

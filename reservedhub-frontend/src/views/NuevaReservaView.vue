@@ -64,12 +64,11 @@
 <div class="form-group">
   <label for="espacio">Espacio</label>
   <select
-    id="espacio"
-    v-model="seleccion.espacioId"
-    :disabled="!seleccion.facultadId || espacios.length === 0"
-    @change="onEspacioChange"
-    required
-  >
+  id="espacio"
+  v-model="seleccion.espacioId"
+  :disabled="!seleccion.facultadId || espacios.length === 0"
+  required
+>
     <option value="" disabled>
       {{ !seleccion.facultadId ? 'Primero selecciona una facultad' : 'Selecciona un espacio disponible' }}
     </option>
@@ -81,37 +80,40 @@
   </select>
 </div>
 
-<!-- RECURSOS DEL ESPACIO -->
+<!-- RECURSOS -->
 <div class="form-group form-group-full">
-  <label>Recursos disponibles en este espacio</label>
-  <p class="hint" v-if="!seleccion.espacioId">
-    Primero selecciona un espacio para ver sus recursos.
-  </p>
-  <p class="hint" v-else-if="recursos.length === 0">
-    Este espacio no tiene recursos asignados o no hay recursos disponibles.
-  </p>
+  <label>Recursos disponibles en esta facultad</label>
 
-  <div v-else class="recursos-list">
-    <label
-      v-for="r in recursos"
-      :key="r._id"
-      class="recurso-item"
-    >
-      <input
-        type="checkbox"
-        :value="r._id"
-        v-model="recursosSeleccionados"
-      />
-      <span>
-        {{ r.nombre }}
-        <span class="recurso-detalle">
-          ({{ r.tipo }}
-          <span v-if="r.codigoInventario"> · {{ r.codigoInventario }}</span>)
-        </span>
+  <p class="hint" v-if="!seleccion.facultadId">
+  Primero selecciona una facultad para ver sus recursos.
+</p>
+
+<p class="hint" v-else-if="recursos.length === 0">
+  No hay recursos registrados o disponibles en esta facultad.
+</p>
+
+<div v-else class="recursos-list">
+  <label
+    v-for="r in recursos"
+    :key="r._id"
+    class="recurso-item"
+  >
+    <input
+      type="checkbox"
+      :value="r._id"
+      v-model="recursosSeleccionados"
+    />
+    <span>
+      {{ r.nombre }}
+      <span class="recurso-detalle">
+        ({{ r.tipo }}
+        <span v-if="r.codigoInventario"> · {{ r.codigoInventario }}</span>)
       </span>
-    </label>
-  </div>
+    </span>
+  </label>
 </div>
+</div>
+
 
         <!-- FECHA INICIO -->
         <div class="form-group">
@@ -160,11 +162,7 @@
       </form>
     </div>
 
-    <!-- Opcional: Debug pequeno -->
-    <!--
-    <pre>{{ seleccion }}</pre>
-    <pre>{{ form }}</pre>
-    -->
+    
   </section>
 </template>
 
@@ -187,12 +185,14 @@ const facultades = ref<Facultad[]>([]);
 const carreras = ref<Carrera[]>([]);
 const materias = ref<Materia[]>([]);
 const espacios = ref<Espacio[]>([]);
-const recursos = ref<Recurso[]>([]);
+const recursos = ref<Recurso[]>([] as Recurso[]);
 const recursosSeleccionados = ref<string[]>([]);
 
 const loading = ref(false);
 const error = ref<string | null>(null);
 const success = ref<string | null>(null);
+
+
 
 const seleccion = reactive({
   facultadId: '',
@@ -223,6 +223,38 @@ const cargarFacultades = async () => {
   }
 };
 
+const cargarRecursosFacultad = async () => {
+  recursos.value = [];
+  recursosSeleccionados.value = [];
+
+  if (!seleccion.facultadId) return;
+
+  try {
+    const data = await getRecursos({
+      estado: 'DISPONIBLE',
+    });
+
+    recursos.value = data.filter((r: Recurso) => {
+      const fac: any = r.facultad;  
+  if (!fac) return false;
+
+  if (typeof fac === 'string') {
+    return fac === seleccion.facultadId;
+  }
+
+  return fac._id === seleccion.facultadId;
+  });
+  } catch (err: any) {
+    console.error(err);
+    error.value =
+      err?.response?.data?.message ||
+      'Error al cargar los recursos de la facultad.';
+  }
+};
+
+
+
+
 const onFacultadChange = async () => {
   limpiarMensajes();
   seleccion.carreraId = '';
@@ -231,9 +263,9 @@ const onFacultadChange = async () => {
   carreras.value = [];
   materias.value = [];
   espacios.value = [];
+
   recursos.value = [];
   recursosSeleccionados.value = [];
-
 
   if (!seleccion.facultadId) return;
 
@@ -245,11 +277,14 @@ const onFacultadChange = async () => {
 
     carreras.value = carrerasData;
     espacios.value = espaciosData;
+
+    
+    await cargarRecursosFacultad();
   } catch (err: any) {
     console.error(err);
     error.value =
       err?.response?.data?.message ||
-      'Error al cargar carreras o espacios de la facultad.';
+      'Error al cargar carreras, espacios o recursos de la facultad.';
   }
 };
 
@@ -268,27 +303,6 @@ const onCarreraChange = async () => {
     error.value =
       err?.response?.data?.message ||
       'Error al cargar las materias de la carrera.';
-  }
-};
-
-const onEspacioChange = async () => {
-  limpiarMensajes();
-  recursos.value = [];
-  recursosSeleccionados.value = [];
-
-  if (!seleccion.espacioId) return;
-
-  try {
-    const data = await getRecursos({
-      espacio: seleccion.espacioId,
-      estado: 'DISPONIBLE',
-    });
-    recursos.value = data;
-  } catch (err: any) {
-    console.error(err);
-    error.value =
-      err?.response?.data?.message ||
-      'Error al cargar los recursos del espacio.';
   }
 };
 
@@ -326,7 +340,7 @@ const onSubmit = async () => {
   try {
     const payload = {
   espacio: seleccion.espacioId,
-  recursos: recursosSeleccionados.value,
+  recursos: recursosSeleccionados.value,  
   materia: seleccion.materiaId || null,
   fechaInicio: inicio.toISOString(),
   fechaFin: fin.toISOString(),
@@ -338,11 +352,11 @@ const onSubmit = async () => {
     success.value = 'Reserva creada correctamente.';
     console.log('Reserva creada:', reservaCreada);
 
-    // Opcional: limpiar formulario (menos la facultad)
+    
     form.motivo = '';
   } catch (err: any) {
     console.error(err);
-    // Si el backend devuelve conflicto de horario (409) u otro mensaje
+    
     error.value =
       err?.response?.data?.message || 'Error al crear la reserva.';
   } finally {
@@ -421,6 +435,8 @@ h1 {
   grid-column: 1 / -1;
 }
 
+
+
 label {
   font-size: 0.85rem;
   font-weight: 500;
@@ -488,5 +504,29 @@ textarea {
 .btn:disabled {
   opacity: 0.7;
   cursor: default;
+}
+
+
+.recursos-list {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.recurso-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.recurso-detalle {
+  font-size: 0.8rem;
+  color: #6b7280;
 }
 </style>

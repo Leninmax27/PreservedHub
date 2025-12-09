@@ -9,7 +9,7 @@ export interface CrearReservaPayload {
   motivo?: string;
 }
 
-// Lo que devuelve el backend (según reserva.model.js + populate de reservas.routes.js)
+
 export interface Reserva {
   _id: string;
 
@@ -39,6 +39,16 @@ export interface Reserva {
     _id: string;
     nombre: string;
     codigo?: string;
+    carrera?: {
+      _id: string;
+      nombre: string;
+      codigo?: string;
+      facultad?: {
+        _id: string;
+        nombre: string;
+        codigo?: string;
+      };
+    };
   } | null;
 
   fechaInicio: string;
@@ -100,4 +110,9 @@ export const updateEstadoReserva = async (
 export const getMisReservas = async (): Promise<Reserva[]> => {
   const { data } = await api.get<Reserva[]>('/reservas/mis-reservas');
   return data;
+};
+
+// DELETE /api/reservas/:id
+export const deleteReserva = async (id: string): Promise<void> => {
+  await api.delete(`/reservas/${id}`);
 };

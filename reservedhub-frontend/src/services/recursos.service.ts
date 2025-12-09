@@ -1,41 +1,57 @@
 import api from './api';
 
+export type TipoRecurso =
+  | 'COMPUTADORA'
+  | 'PROYECTOR'
+  | 'AUDIO'
+  | 'VR'
+  | 'CONSOLA'
+  | 'KITS_LAB'
+  | 'INSTRUMENTAL'
+  | 'MOBILIARIO'
+  | 'OTRO';
+
 export interface Recurso {
   _id?: string;
   nombre: string;
-  tipo: string;
+  tipo: TipoRecurso;
   codigoInventario?: string;
   descripcion?: string;
-  facultad: string;      // obligatorio
-  espacio?: string|null; // opcional
+  facultad: string;              // id de facultad
+  espacio?: string | null;       // id de espacio o null
   cantidad: number;
-  estado: string;
+  estado: 'DISPONIBLE' | 'RESERVADO' | 'MANTENIMIENTO' | 'INACTIVO';
 }
 
 export interface FiltroRecursos {
   facultad?: string;
   espacio?: string;
-  tipo?: string;
+  tipo?: TipoRecurso;
   estado?: string;
 }
 
-export async function getRecursos(filtros?: FiltroRecursos) {
-  const { data } = await api.get('/recursos', { params: filtros });
+export async function getRecursos(
+  filtros?: FiltroRecursos
+): Promise<Recurso[]> {
+  const { data } = await api.get<Recurso[]>('/recursos', { params: filtros });
   return data;
 }
 
-export async function getRecursoById(id: string) {
-  const { data } = await api.get(`/recursos/${id}`);
+export async function getRecursoById(id: string): Promise<Recurso> {
+  const { data } = await api.get<Recurso>(`/recursos/${id}`);
   return data;
 }
 
-export async function crearRecurso(data: Recurso) {
-  const { data: created } = await api.post('/recursos', data);
+export async function crearRecurso(data: Recurso): Promise<Recurso> {
+  const { data: created } = await api.post<Recurso>('/recursos', data);
   return created;
 }
 
-export async function actualizarRecurso(id: string, data: Partial<Recurso>) {
-  const { data: updated } = await api.put(`/recursos/${id}`, data);
+export async function actualizarRecurso(
+  id: string,
+  data: Partial<Recurso>
+): Promise<Recurso> {
+  const { data: updated } = await api.put<Recurso>(`/recursos/${id}`, data);
   return updated;
 }
 

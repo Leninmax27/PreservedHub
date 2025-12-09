@@ -76,22 +76,24 @@ router.post('/', async (req, res) => {
     }
 
     const nuevoRecurso = new Recurso({
-      nombre,
-      tipo,
-      codigoInventario,
-      descripcion,
-      facultad,
-      espacio: espacio || null,
-      cantidad,
-      estado,
-    });
+  nombre,
+  tipo,
+  codigoInventario,
+  descripcion,
+  facultad,
+  espacio: espacio || null,
+  cantidad,
+  estado,
+});
 
-    const guardado = await nuevoRecurso.save();
-    const poblado = await guardado
-      .populate('facultad', 'nombre codigo')
-      .populate('espacio', 'nombre codigo');
+const guardado = await nuevoRecurso.save();
 
-    res.status(201).json(poblado);
+
+const poblado = await Recurso.findById(guardado._id)
+  .populate('facultad', 'nombre codigo')
+  .populate('espacio', 'nombre codigo');
+
+res.status(201).json(poblado);
   } catch (error) {
     console.error('Error al crear recurso:', error);
     res.status(500).json({ message: 'Error al crear el recurso' });

@@ -6,12 +6,10 @@ const Espacio = require('../models/espacio.model');
 const Recurso = require('../models/recurso.model');
 const authMiddleware = require('../middlewares/auth.middleware'); // usamos JWT
 
-// Estados que cuentan para choque (reservas "activas")
+
 const ESTADOS_CONFLICTO = ['PENDIENTE', 'CONFIRMADA'];
 
-/**
- * Helper: verifica si hay conflicto de horario en un espacio
- */
+
 const existeConflictoEspacio = async (espacioId, fechaInicio, fechaFin, reservaIdExcluir = null) => {
   const filtro = {
     espacio: espacioId,
@@ -38,7 +36,7 @@ const existeConflictoRecursos = async (recursosIds, fechaInicio, fechaFin, reser
   if (!recursosIds || recursosIds.length === 0) return false;
 
   const filtro = {
-    recursos: { $in: recursosIds }, // cualquier reserva que use alguno de estos recursos
+    recursos: { $in: recursosIds }, 
     estado: { $in: ESTADOS_CONFLICTO },
     fechaInicio: { $lt: fechaFin },
     fechaFin: { $gt: fechaInicio },
@@ -55,6 +53,39 @@ const existeConflictoRecursos = async (recursosIds, fechaInicio, fechaFin, reser
 /**
  * GET /api/reservas
  * Lista reservas (con filtros opcionales)
+ */
+router.get('/:id', async (req, res) => {
+  try {
+    const reserva = await Reserva.findById(req.params.id)
+      .populate('usuario', 'nombre apellido correo rol')
+      .populate('espacio', 'nombre tipo codigo')
+      .populate({
+        path: 'materia',
+        populate: [
+          {
+            path: 'carrera',
+            populate: { path: 'facultad' },
+          },
+          {
+            path: 'facultad',
+          },
+        ],
+      })
+      .populate('recursos', 'nombre tipo codigoInventario');
+
+    if (!reserva) {
+      return res.status(404).json({ message: 'Reserva no encontrada' });
+    }
+
+    res.json(reserva);
+  } catch (error) {
+    console.error('Error al obtener reserva:', error);
+    res.status(500).json({ message: 'Error al obtener la reserva' });
+  }
+});
+
+/**
+ * GET /api/reservas/:id
  */
 router.get('/', async (req, res) => {
   try {
@@ -75,35 +106,19 @@ router.get('/', async (req, res) => {
       .populate('usuario', 'nombre apellido correo rol')
       .populate('espacio', 'nombre tipo codigo')
       .populate('recursos', 'nombre tipo codigoInventario')
-      .populate('materia', 'nombre codigo')
+      .populate({
+        path: 'materia',
+        populate: {
+          path: 'carrera',
+          populate: { path: 'facultad' },
+        },
+      })
       .sort({ fechaInicio: -1 });
 
     res.json(reservas);
   } catch (error) {
     console.error('Error al obtener reservas:', error);
-    res.status(500).json({ message: 'Error al obtener reservas' });
-  }
-});
-
-/**
- * GET /api/reservas/:id
- */
-router.get('/:id', async (req, res) => {
-  try {
-    const reserva = await Reserva.findById(req.params.id)
-      .populate('usuario', 'nombre apellido correo rol')
-      .populate('espacio', 'nombre tipo codigo')
-      .populate('recursos', 'nombre tipo codigoInventario')
-      .populate('materia', 'nombre codigo');
-
-    if (!reserva) {
-      return res.status(404).json({ message: 'Reserva no encontrada' });
-    }
-
-    res.json(reserva);
-  } catch (error) {
-    console.error('Error al obtener reserva:', error);
-    res.status(500).json({ message: 'Error al obtener la reserva' });
+    res.status(500).json({ message: 'Error al obtener las reservas' });
   }
 });
 
@@ -156,12 +171,12 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 
     // (Opcional) evitar reservas totalmente en el pasado
-    const ahora = new Date();
-    if (fechaFinDate < ahora) {
-      return res.status(400).json({
-        message: 'No se pueden crear reservas en el pasado',
-      });
-    }
+   // const ahora = new Date();//
+   // if (fechaFinDate < ahora) {//
+      //return res.status(400).json({//
+       // message: 'No se pueden crear reservas en el pasado',//
+     // });//
+   // }//
 
     // 2. Validar estado del espacio
     const espacioDoc = await Espacio.findById(espacio);
@@ -343,11 +358,7 @@ router.patch('/:id/estado', authMiddleware, async (req, res) => {
   }
 });
 
-/**
- * DELETE /api/reservas/:id
- * Para desarrollo: borrado real.
- * En producción, probablemente querrás solo marcar como CANCELADA.
- */
+
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const eliminada = await Reserva.findByIdAndDelete(req.params.id);
@@ -360,6 +371,148 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Error al eliminar reserva:', error);
     res.status(500).json({ message: 'Error al eliminar la reserva' });
+  }
+});
+
+
+//pronostico//CORE//
+function getWindowFromMeses(mesesParam) {
+  const ahora = new Date();
+
+  const mesesNumero = parseInt(mesesParam, 10);
+  const meses = !isNaN(mesesNumero) && mesesNumero > 0 ? mesesNumero : 6;
+
+  const inicio = new Date(ahora);
+  inicio.setMonth(inicio.getMonth() - meses);
+
+  return { inicio, fin: ahora };
+}
+
+function buildMaxSimultaneousByTipo(reservas) {
+  const eventosPorTipo = {};
+
+  for (const reserva of reservas) {
+    if (!reserva.recursos || reserva.recursos.length === 0) continue;
+    for (const recurso of reserva.recursos) {
+      if (!recurso || !recurso.tipo) continue;
+      const tipo = recurso.tipo;
+
+      if (!eventosPorTipo[tipo]) {
+        eventosPorTipo[tipo] = [];
+      }
+
+      const inicio = new Date(reserva.fechaInicio).getTime();
+      const fin = new Date(reserva.fechaFin).getTime();
+
+      eventosPorTipo[tipo].push({ t: inicio, delta: 1 });
+      eventosPorTipo[tipo].push({ t: fin, delta: -1 });
+    }
+  }
+
+  const maxPorTipo = {};
+
+  for (const tipo of Object.keys(eventosPorTipo)) {
+    const eventos = eventosPorTipo[tipo].sort((a, b) => {
+      if (a.t === b.t) return a.delta - b.delta;
+      return a.t - b.t;
+    });
+
+    let actual = 0;
+    let max = 0;
+
+    for (const e of eventos) {
+      actual += e.delta;
+      if (actual > max) max = actual;
+    }
+
+    maxPorTipo[tipo] = max;
+  }
+
+  return maxPorTipo;
+}
+
+router.get('/pronostico/facultad/:id', async (req, res) => {
+  try {
+    const facultadId = req.params.id;
+    const crecimiento = parseFloat(req.query.crecimiento || '0.2');
+
+    const { inicio, fin } = getWindowFromMeses(req.query.meses);
+
+    const reservas = await Reserva.find({
+      fechaInicio: { $lt: fin },
+      fechaFin: { $gt: inicio },
+      estado: { $in: ['CONFIRMADA', 'PENDIENTE'] },
+    })
+      .populate({
+        path: 'espacio',
+        select: 'nombre facultad',
+      })
+      .populate({
+        path: 'recursos',
+        select: 'tipo facultad',
+      });
+
+    const reservasFacultad = reservas.filter((r) => {
+      return r.espacio && String(r.espacio.facultad) === String(facultadId);
+    });
+
+    const maxHistoricoPorTipo = buildMaxSimultaneousByTipo(reservasFacultad);
+
+    const recursosFacultad = await Recurso.find({ facultad: facultadId });
+
+    const capacidadPorTipo = recursosFacultad.reduce((acc, r) => {
+      const tipo = r.tipo;
+      const cantidad = r.cantidad || 1;
+      if (!acc[tipo]) acc[tipo] = 0;
+      acc[tipo] += cantidad;
+      return acc;
+    }, {});
+
+    const factor = 1 + crecimiento;
+
+    const tipos = new Set([
+      ...Object.keys(maxHistoricoPorTipo),
+      ...Object.keys(capacidadPorTipo),
+    ]);
+
+    const resultadoRecursos = [];
+
+    for (const tipo of tipos) {
+      const usoHistorico = maxHistoricoPorTipo[tipo] || 0;
+      const demandaProyectada = usoHistorico * factor;
+      const capacidadActual = capacidadPorTipo[tipo] || 0;
+
+      let cobertura = null;
+      let faltantes = 0;
+
+      if (demandaProyectada > 0) {
+        cobertura = capacidadActual / demandaProyectada;
+        const deficit = demandaProyectada - capacidadActual;
+        faltantes = deficit > 0 ? Math.ceil(deficit) : 0;
+      }
+
+      resultadoRecursos.push({
+        tipo,
+        usoHistoricoMaximo: usoHistorico,
+        demandaProyectada: Number(demandaProyectada.toFixed(2)),
+        capacidadActual,
+        cobertura: cobertura !== null ? Number(cobertura.toFixed(2)) : null,
+        faltantes,
+      });
+    }
+
+ res.json({
+      facultad: facultadId,
+      ventana: {
+        inicio,
+        fin,
+      },
+      factorCrecimiento: factor,
+      recursos: resultadoRecursos,
+    });
+  } catch (error) {
+    console.error('Error en pronóstico por facultad:', error);
+    res.status(500).json({ message: 'Error al calcular pronóstico' });
   }
 });
 
