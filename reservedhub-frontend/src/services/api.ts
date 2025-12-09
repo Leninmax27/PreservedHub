@@ -2,10 +2,11 @@ import axios from 'axios';
 
 // Usar la variable de entorno Vite `VITE_API_BASE_URL` en producción.
 // Si no está definida, caerá al `localhost:4000` para desarrollo local.
-const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:4000/api';
+
+//const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:4000/api';
 
 const api = axios.create({
-  baseURL: apiBase,
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api',
 });
 
 // Adjuntar token automáticamente si existe
