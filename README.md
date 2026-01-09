@@ -21,13 +21,12 @@ Sistema de Gestión y reserva de espacios y recursos académicos con módulo de 
 **Tecnologias Utilizadas** 
 
 **Backend**
-
-- Node.js
-- Express.js
-- MongoDB - Base de datos NoSQL
-- Mongoose - ODM para MongoDB
-- JWT - Autenticación basada en tokens
-- CORS - Manejo de políticas de origen cruzado
+Node.js
+Express.js
+MongoDB - Base de datos NoSQL
+Mongoose - ODM para MongoDB
+JWT - Autenticación basada en tokens
+CORS - Manejo de políticas de origen cruzado
 
 **Frontend** 
 - Vue.js 3
