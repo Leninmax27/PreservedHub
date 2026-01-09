@@ -1,12 +1,10 @@
-// src/routes/tickets.routes.js
+
 const express = require('express');
 const router = express.Router();
 const Ticket = require('../models/ticket.model');
 
-/**
- * Función simple para generar un código de ticket.
- * Luego la puedes mover a utils si quieres.
- */
+
+
 const generarCodigoTicket = () => {
   const timestamp = Date.now(); // milisegundos
   return `RHB-${timestamp}`;

@@ -10,12 +10,11 @@ const RecursoSchema = new Schema(
       enum: [
         'COMPUTADORA',
         'PROYECTOR',
-        'AUDIO',        // parlantes, micrófonos
-        'VR',           // oculus, visores
-        'CONSOLA',      // PlayStation, Xbox, etc.
-        'KITS_LAB',     // arduino, kits de electrónica
-        'INSTRUMENTAL', // médico/lab
-        'MOBILIARIO',   // sillas especiales, mesas, etc.
+        'AUDIO',        
+        'CONSOLA',      
+        'KITS_LAB',     
+        'INSTRUMENTAL', 
+        'MOBILIARIO',   
         'OTRO',
       ],
       required: true,
