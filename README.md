@@ -21,12 +21,12 @@ Sistema de Gestión y reserva de espacios y recursos académicos con módulo de 
 **Tecnologias Utilizadas** 
 
 **Backend**
-Node.js
-Express.js
-MongoDB - Base de datos NoSQL
-Mongoose - ODM para MongoDB
-JWT - Autenticación basada en tokens
-CORS - Manejo de políticas de origen cruzado
+- Node.js
+- xpress.js
+- MongoDB - Base de datos NoSQL
+- Mongoose - ODM para MongoDB
+- JWT - Autenticación basada en tokens
+- CORS - Manejo de políticas de origen cruzado
 
 **Frontend** 
 - Vue.js 3
@@ -51,20 +51,26 @@ cd ReserveHUB
 
 *Backend*
 cd backend
+
 npm install
 
 *Frontend*
 cd reservedhub-frontend
+
 npm install 
 
 **3. Configurar variables de entorno**
+
 El sistema está preconfigurado para usar MongoDB Atlas.
 Si deseas usar tu propia base de datos, cambia MONGO_URI en el archivo .env.
 
 **4. Ejecutar en modo desarrollo**
 **Backend**
+
 Backend (Puerto 4000)
+
 cd ../backend
+
 npm run dev
 
 **Frontend**
