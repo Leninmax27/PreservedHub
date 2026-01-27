@@ -1,6 +1,6 @@
 <template>
   <section class="home">
-    <h1 class="title">ReserveHUB Frontend</h1>
+    <h1 class="title">ReserveHUB </h1>
     <p class="subtitle">Frontend conectado a tu backend de reservas 🎓🏫</p>
 
     <div v-if="!usuario" class="card">
@@ -111,7 +111,7 @@ const isAdmin = computed(() => usuario.value?.rol === 'ADMIN');
 .subtitle {
   text-align: center;
   font-size: 0.95rem;
-  color: #6b7280;
+  color: #7c818a;
   margin-bottom: 1.5rem;
 }
 
@@ -124,7 +124,7 @@ const isAdmin = computed(() => usuario.value?.rol === 'ADMIN');
   margin-left: 0.5rem;
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
-  background: #e5e7eb;
+  background: #ffffff;
   font-size: 0.8rem;
 }
 
@@ -138,7 +138,7 @@ const isAdmin = computed(() => usuario.value?.rol === 'ADMIN');
   background: #ffffff;
   border-radius: 12px;
   padding: 1rem 1rem 1.2rem;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 14px rgba(7, 216, 231, 0.986);
 }
 
 .card h2 {

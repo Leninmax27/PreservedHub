@@ -11,6 +11,7 @@ import AdminEspaciosView from '../views/AdminEspaciosView.vue';
 import AdminRecursosView from '../views/AdminRecursosView.vue';
 import AdminReservasView from '../views/AdminReservasView.vue';
 import AdminPronosticoView from '../views/AdminPronosticoView.vue';
+import MisTicketsView from '../views/MisTicketsView.vue';
 
 
 
@@ -82,6 +83,20 @@ const routes = [
   component: AdminPronosticoView,
   meta: { requiresAuth: true, requiresAdmin: true },
 },
+{
+  path: '/tickets/mis',
+  name: 'mis-tickets',
+  component: MisTicketsView,
+  meta: { requiresAuth: true },
+},
+{
+  path: '/reservas/mias',
+  name: 'mis-reservas',
+  component: MisReservasView,
+  meta: { requiresAuth: true },
+},
+
+
 
 
 

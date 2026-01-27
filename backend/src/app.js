@@ -1,12 +1,13 @@
 // src/app.js
 const express = require('express');
 const cors = require('cors');
-
+//grafica
 const app = express();
 
 // Middlewares globales
 app.use(cors());
 app.use(express.json());
+const coreRoutes = require('./routes/core.routes');
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -27,6 +28,8 @@ app.use('/api/espacios', require('./routes/espacios.routes'));
 app.use('/api/recursos', require('./routes/recursos.routes'));
 app.use('/api/reservas', require('./routes/reservas.routes'));
 app.use('/api/tickets', require('./routes/tickets.routes'));
+//Grafica
+app.use('/api/core', coreRoutes);
 
 
 

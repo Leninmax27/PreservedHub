@@ -13,11 +13,7 @@
           <label>Facultad</label>
           <select v-model="facultadId">
             <option disabled value="">Seleccione una facultad</option>
-            <option
-              v-for="f in facultades"
-              :key="f._id"
-              :value="f._id"
-            >
+            <option v-for="f in facultades" :key="f._id" :value="f._id">
               {{ f.nombre }}
             </option>
           </select>
@@ -33,15 +29,30 @@
         </div>
 
         <div class="form-group">
-  <label>Periodo de análisis (meses)</label>
-  <select v-model.number="meses">
-    <option v-for="m in 12" :key="m" :value="m">
-      {{ m }} mes<span v-if="m > 1">es</span>
-    </option>
-  </select>
-</div>
+          <label>Periodo de análisis (meses)</label>
+          <select v-model.number="meses">
+            <option v-for="m in 12" :key="m" :value="m">
+              {{ m }} mes<span v-if="m > 1">es</span>
+            </option>
+          </select>
+        </div>
 
-        
+        <div class="form-group">
+          <label>Métrica ranking</label>
+          <select v-model="rankingMetrica">
+            <option value="reservas">Nº Reservas</option>
+            <option value="horas">Horas Totales</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Top</label>
+          <select v-model.number="rankingLimit">
+            <option :value="5">5</option>
+            <option :value="10">10</option>
+            <option :value="15">15</option>
+          </select>
+        </div>
 
         <div class="form-actions">
           <button
@@ -51,12 +62,29 @@
           >
             {{ loading ? 'Calculando...' : 'Calcular pronóstico' }}
           </button>
+
+          <button
+            class="btn secondary"
+            @click="calcularRankingEspacios"
+            :disabled="!facultadId || loadingRanking"
+          >
+            {{ loadingRanking ? 'Calculando...' : 'Ranking espacios' }}
+          </button>
+
+          <button
+            class="btn secondary"
+            @click="cargarDashboard"
+            :disabled="!facultadId || loadingDashboard"
+          >
+            {{ loadingDashboard ? 'Generando...' : 'Dashboard core' }}
+          </button>
         </div>
       </div>
 
       <p v-if="error" class="error-text">{{ error }}</p>
     </div>
 
+    <!-- PRONÓSTICO -->
     <div class="card" v-if="resultado">
       <div class="card-header-row">
         <h2 class="card-title">Resultados por tipo de recurso</h2>
@@ -64,6 +92,96 @@
           Crecimiento aplicado: {{ Math.round((resultado.factorCrecimiento - 1) * 100) }}%
         </span>
       </div>
+      <!-- DASHBOARD CORE -->
+<div class="card" v-if="dashboard">
+  <div class="card-header-row">
+    <h2 class="card-title">Dashboard core (resumen del periodo)</h2>
+    <span class="pill">
+      Últimos {{ meses }} meses · Crecimiento: {{ Math.round(crecimiento * 100) }}%
+    </span>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <p class="kpi-label">Total reservas</p>
+      <p class="kpi-value">{{ dashboard.kpis.totalReservas }}</p>
+    </div>
+
+    <div class="kpi">
+      <p class="kpi-label">Espacio más usado</p>
+      <p class="kpi-value" v-if="dashboard.kpis.espacioMasUsado">
+        {{ dashboard.kpis.espacioMasUsado.nombre }}
+      </p>
+      <p class="kpi-sub" v-if="dashboard.kpis.espacioMasUsado">
+        {{ dashboard.kpis.espacioMasUsado.reservas }} reservas
+      </p>
+      <p class="kpi-value" v-else>-</p>
+    </div>
+
+    <div class="kpi">
+      <p class="kpi-label">Estados</p>
+      <div class="estado-list">
+        <span
+          v-for="(val, key) in dashboard.kpis.estados"
+          :key="key"
+          class="estado-pill"
+        >
+          {{ key }}: {{ val }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gráfico capacidad vs demanda -->
+  <RecursosComparativoChart
+    v-if="chartItemsDashboard.length"
+    :items="chartItemsDashboard"
+    titulo="Capacidad actual vs Demanda proyectada"
+  />
+
+  <h3 class="subsection-title">Cuadro comparativo</h3>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Tipo</th>
+        <th>Capacidad</th>
+        <th>Uso máx. histórico</th>
+        <th>Demanda proyectada</th>
+        <th>Cobertura</th>
+        <th>Faltantes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr v-for="r in dashboard.comparativoRecursos" :key="r.tipo">
+        <td>{{ r.tipo }}</td>
+        <td>{{ r.capacidadActual }}</td>
+        <td>{{ r.usoHistoricoMaximo }}</td>
+        <td>{{ r.demandaProyectada }}</td>
+        <td>
+          <span v-if="r.cobertura !== null" class="badge" :class="coberturaClass(r.cobertura)">
+            {{ r.cobertura }}
+          </span>
+          <span v-else>-</span>
+        </td>
+        <td>
+          <span v-if="r.faltantes > 0" class="faltantes">{{ r.faltantes }}</span>
+          <span v-else>0</span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p v-if="!dashboard.comparativoRecursos.length" class="muted">
+    No hay datos suficientes para comparativo en este periodo.
+  </p>
+</div>
+
+<div class="card" v-else-if="errorDashboard">
+  <p class="error-text">{{ errorDashboard }}</p>
+</div>
+
+
 
       <table class="table">
         <thead>
@@ -102,6 +220,39 @@
         </tbody>
       </table>
     </div>
+
+    <!-- RANKING -->
+    <div class="card" v-if="ranking && ranking.length">
+      <h2 class="card-title">Top espacios más usados</h2>
+      <p class="subtitle" v-if="rankingMeta">
+        Métrica: <strong>{{ rankingMeta.metrica }}</strong> · Últimos {{ meses }} meses
+      </p>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Espacio</th>
+            <th>Tipo</th>
+            <th>Nº reservas</th>
+            <th>Horas totales</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(e, i) in ranking" :key="e.espacioId">
+            <td>{{ i + 1 }}</td>
+            <td>{{ e.nombre }}</td>
+            <td>{{ e.tipo }}</td>
+            <td>{{ e.totalReservas }}</td>
+            <td>{{ e.horasTotales }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" v-else-if="ranking && !ranking.length">
+      <p>No hay datos suficientes para ranking en este periodo.</p>
+    </div>
   </section>
 </template>
 
@@ -109,6 +260,47 @@
 import { ref, onMounted } from 'vue';
 import api from '../services/api';
 import { listarFacultades, type Facultad } from '../services/facultades.service';
+
+//GRAFICA
+import { computed } from 'vue';
+import RecursosComparativoChart from '../components/RecursosComparativoChart.vue';
+import { getCoreResumenPorFacultad, type CoreResumenResponse } from '../services/core.service';
+const dashboard = ref<CoreResumenResponse | null>(null);
+const loadingDashboard = ref(false);
+const errorDashboard = ref<string | null>(null);
+
+const chartItemsDashboard = computed(() => {
+  if (!dashboard.value) return [];
+  return dashboard.value.comparativoRecursos.map((r) => ({
+    tipo: r.tipo,
+    capacidadActual: r.capacidadActual,
+    demandaProyectada: r.demandaProyectada,
+  }));
+});
+async function cargarDashboard() {
+  if (!facultadId.value) return;
+
+  loadingDashboard.value = true;
+  errorDashboard.value = null;
+  dashboard.value = null;
+
+  try {
+    const data = await getCoreResumenPorFacultad(facultadId.value, {
+      meses: meses.value,
+      crecimiento: crecimiento.value,
+    });
+    dashboard.value = data;
+  } catch (err: any) {
+    console.error(err);
+    errorDashboard.value =
+      err?.response?.data?.message || 'Error al generar el dashboard core.';
+  } finally {
+    loadingDashboard.value = false;
+  }
+}
+
+
+
 
 interface PronosticoRecurso {
   tipo: string;
@@ -128,6 +320,40 @@ interface PronosticoResponse {
   factorCrecimiento: number;
   recursos: PronosticoRecurso[];
 }
+// Ranking de espacios
+const ranking = ref<any[] | null>(null);
+const rankingMeta = ref<any | null>(null);
+const loadingRanking = ref(false);
+const rankingMetrica = ref<'reservas' | 'horas'>('reservas');
+const rankingLimit = ref(10);
+
+async function calcularRankingEspacios() {
+  if (!facultadId.value) return;
+
+  loadingRanking.value = true;
+  try {
+    const { data } = await api.get(
+      `/reservas/ranking-espacios/facultad/${facultadId.value}`,
+      {
+        params: {
+          meses: meses.value,
+          metrica: rankingMetrica.value,
+          limit: rankingLimit.value,
+        },
+      }
+    );
+
+    ranking.value = data.ranking;
+    rankingMeta.value = data;
+  } catch (err) {
+    console.error(err);
+    ranking.value = [];
+    rankingMeta.value = null;
+  } finally {
+    loadingRanking.value = false;
+  }
+}
+// Pronóstico de recursos
 
 const facultades = ref<Facultad[]>([]);
 const facultadId = ref<string>('');
@@ -333,4 +559,59 @@ select:focus {
   font-size: 0.85rem;
   color: #b91c1c;
 }
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.kpi {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 0.8rem;
+  background: #fafafa;
+}
+
+.kpi-label {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.kpi-value {
+  margin: 0.35rem 0 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.kpi-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+.estado-list {
+  margin-top: 0.35rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.estado-pill {
+  background: #eef2ff;
+  color: #3730a3;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.78rem;
+}
+
+.subsection-title {
+  margin: 1rem 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+
 </style>

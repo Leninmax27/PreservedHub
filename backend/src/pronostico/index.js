@@ -2,7 +2,9 @@ const Reserva = require('../models/reserva.model');
 const Recurso = require('../models/recurso.model');
 
 const { getPronosticoStrategy } = require('../estrategias/strategyFactory');
+const { getSpaceRankingStrategy } = require('../estrategias/spaceRankingFactory');
 
+// Obtiene el rango de fechas basado en los meses
 function getWindowFromMeses(mesesParam) {
   const ahora = new Date();
 
@@ -15,6 +17,7 @@ function getWindowFromMeses(mesesParam) {
   return { inicio, fin: ahora };
 }
 
+// Calculo del maximo simultaneo por tipo de recurso
 function buildMaxSimultaneousByTipo(reservas) {
   const eventosPorTipo = {};
 
@@ -58,6 +61,7 @@ function buildMaxSimultaneousByTipo(reservas) {
   return maxPorTipo;
 }
 
+// Calculo de la capacidad por tipo de recurso
 function buildCapacidadPorTipo(recursosFacultad) {
   return recursosFacultad.reduce((acc, r) => {
     const tipo = r.tipo;
@@ -68,7 +72,7 @@ function buildCapacidadPorTipo(recursosFacultad) {
   }, {});
 }
 
-
+//Calculo del pronostico por facultad
 
 async function calcularPronosticoPorFacultad({
   facultadId,
@@ -151,6 +155,77 @@ const strategy = getPronosticoStrategy(estrategia);
   };
 }
 
+
+// Calculo del ranking de espacios por facultad
+async function rankingEspaciosPorFacultad({
+  facultadId,
+  meses,
+  metrica,
+  limit,
+}) {
+  const { inicio, fin } = getWindowFromMeses(meses);
+
+  const lim = Math.max(parseInt(limit || '10', 10), 1);
+
+  const reservas = await Reserva.find({
+    fechaInicio: { $lt: fin },
+    fechaFin: { $gt: inicio },
+    estado: { $in: ['CONFIRMADA', 'PENDIENTE'] },
+  }).populate({
+    path: 'espacio',
+    select: 'nombre tipo facultad codigo',
+  });
+
+  const stats = new Map();
+
+  for (const r of reservas) {
+    if (!r.espacio) continue;
+    if (String(r.espacio.facultad) !== String(facultadId)) continue;
+
+    const espacioId = String(r.espacio._id);
+
+    const inicioR = new Date(r.fechaInicio).getTime();
+    const finR = new Date(r.fechaFin).getTime();
+    const horas = Math.max((finR - inicioR) / (1000 * 60 * 60), 0);
+
+    if (!stats.has(espacioId)) {
+      stats.set(espacioId, {
+        espacioId,
+        nombre: r.espacio.nombre,
+        tipo: r.espacio.tipo || 'SIN_TIPO',
+        codigo: r.espacio.codigo || null,
+        totalReservas: 0,
+        horasTotales: 0,
+      });
+    }
+
+    const s = stats.get(espacioId);
+    s.totalReservas += 1;
+    s.horasTotales += horas;
+  }
+
+  const strategy = getSpaceRankingStrategy(metrica);
+
+  const ranking = Array.from(stats.values())
+    .map((e) => ({
+      ...e,
+      horasTotales: Number(e.horasTotales.toFixed(2)),
+      score: Number(strategy.computeScore(e).toFixed(2)),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, lim);
+
+  return {
+    facultad: facultadId,
+    ventana: { inicio, fin },
+    metrica: strategy.nombre,
+    limit: lim,
+    ranking,
+  };
+}
+
+
 module.exports = {
   calcularPronosticoPorFacultad,
+  rankingEspaciosPorFacultad,
 };

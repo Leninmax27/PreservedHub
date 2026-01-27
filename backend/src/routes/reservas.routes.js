@@ -6,7 +6,7 @@ const Espacio = require('../models/espacio.model');
 const Recurso = require('../models/recurso.model');
 const authMiddleware = require('../middlewares/auth.middleware'); // usamos JWT
 
-const { calcularPronosticoPorFacultad } = require('../pronostico');
+const { calcularPronosticoPorFacultad, rankingEspaciosPorFacultad } = require('../pronostico');
 
 
 
@@ -389,6 +389,26 @@ router.get('/pronostico/facultad/:id', async (req, res) => {
   } catch (error) {
     console.error('Error en pronóstico por facultad:', error);
     res.status(500).json({ message: 'Error al calcular pronóstico' });
+  }
+});
+router.get('/ranking-espacios/facultad/:id', async (req, res) => {
+  try {
+    const facultadId = req.params.id;
+    const meses = req.query.meses;
+    const metrica = req.query.metrica; // 'reservas' | 'horas'
+    const limit = req.query.limit;
+
+    const data = await rankingEspaciosPorFacultad({
+      facultadId,
+      meses,
+      metrica,
+      limit,
+    });
+
+    res.json(data);
+  } catch (error) {
+    console.error('Error en ranking de espacios:', error);
+    res.status(500).json({ message: 'Error al generar ranking de espacios' });
   }
 });
 

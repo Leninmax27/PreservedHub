@@ -2,31 +2,33 @@ import api from './api';
 
 export interface CrearReservaPayload {
   espacio: string;
-  recursos?: string[];          // IDs de recursos (opcional)
+  recursos?: string[];
   materia?: string | null;
-  fechaInicio: string;          // ISO string
-  fechaFin: string;             // ISO string
+  fechaInicio: string;
+  fechaFin: string;
   motivo?: string;
 }
+
 
 
 export interface Reserva {
   _id: string;
 
   usuario?: {
-    _id: string;
+    _id?: string;
+    id?: string;
     nombre: string;
     apellido: string;
     correo: string;
     rol?: string;
   };
 
-  espacio: {
+  espacio?: {
     _id: string;
     nombre: string;
     tipo?: string;
     codigo?: string;
-  };
+  } | null;
 
   recursos?: {
     _id: string;
@@ -72,20 +74,18 @@ export const crearReserva = async (
 // ===== ADMIN / LISTADO GENERAL =====
 
 export interface FiltrosReservas {
-  usuario?: string;  // id de usuario
-  espacio?: string;  // id de espacio
+  usuario?: string;
+  espacio?: string;
   estado?: string;
-  desde?: string;    // YYYY-MM-DD o ISO
-  hasta?: string;    // YYYY-MM-DD o ISO
+  desde?: string;
+  hasta?: string;
 }
 
-// GET /api/reservas  (admin)
+// GET /api/reservas (admin)
 export const getReservas = async (
   filtros?: FiltrosReservas
 ): Promise<Reserva[]> => {
-  const { data } = await api.get<Reserva[]>('/reservas', {
-    params: filtros,
-  });
+  const { data } = await api.get<Reserva[]>('/reservas', { params: filtros });
   return data;
 };
 
@@ -106,13 +106,18 @@ export const updateEstadoReserva = async (
 
 // ===== MÓDULO "MIS RESERVAS" (USUARIO) =====
 
-// GET /api/reservas/mis-reservas
+// ✅ GET /api/reservas/usuario/mis-reservas
 export const getMisReservas = async (): Promise<Reserva[]> => {
-  const { data } = await api.get<Reserva[]>('/reservas/mis-reservas');
+  const { data } = await api.get<Reserva[]>('/reservas/usuario/mis-reservas');
   return data;
 };
 
-// DELETE /api/reservas/:id
+// Cancelar reserva (mejor que delete)
+export const cancelarReserva = async (id: string): Promise<Reserva> => {
+  return await updateEstadoReserva(id, 'CANCELADA');
+};
+
+// (Opcional) si aún quieres mantener delete
 export const deleteReserva = async (id: string): Promise<void> => {
   await api.delete(`/reservas/${id}`);
 };
