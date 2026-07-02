@@ -1,0 +1,38 @@
+name: SAST - Checkov Terraform
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  checkov-sast:
+    name: Analisis SAST con Checkov
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar codigo del repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar Checkov
+        run: pip install checkov
+
+      - name: Ejecutar analisis SAST IaC con Checkov
+        run: |
+          checkov -d terraform/oracle-vm-apache --framework terraform --soft-fail -o cli | tee checkov-report.txt
+          checkov -d terraform/oracle-vm-apache --framework terraform --soft-fail -o json > checkov-report.json
+
+      - name: Subir retroalimentacion de Checkov como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-checkov-sast
+          path: |
+            checkov-report.txt
+            checkov-report.json

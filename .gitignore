@@ -47,6 +47,23 @@ reservedhub-frontend/.env.development
 reservedhub-frontend/.vite/
 reservedhub-frontend/.cache/
 
+
+#================================
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.*
+**/crash.log
+**/crash.*.log
+**/*.tfvars
+
+# Credenciales
+*.pem
+*.key
+.oci/
+.ssh/
+
 # ================================
 # SISTEMA
 # ================================

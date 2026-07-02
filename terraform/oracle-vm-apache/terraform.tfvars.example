@@ -1,0 +1,11 @@
+region = "sa-bogota-1"
+
+oci_profile = "DEFAULT"
+
+tamano_vm = "VM.Standard.E2.1.Micro"
+
+tenancy_ocid = "ocid1.tenancy.oc1..example"
+
+compartment_ocid = "ocid1.tenancy.oc1..example"
+
+ssh_public_key_path = "C:/Users/eysadmin/.ssh/oci_tf_key.pub"
