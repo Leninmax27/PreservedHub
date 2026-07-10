@@ -1,0 +1,135 @@
+name: CI/CD DevSecOps PreservedHub
+
+on:
+  push:
+    branches:
+      - main
+      - feature/devsecops-final
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  devsecops-pipeline:
+    name: Build, Security, Kubernetes and DAST
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create reports directory
+        run: mkdir -p reports
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Backend dependency audit
+        working-directory: backend
+        run: npm audit --audit-level=high --json > ../reports/npm-audit-backend.json || true
+
+      - name: Run backend tests if present
+        working-directory: backend
+        run: npm test --if-present
+
+      - name: Install frontend dependencies
+        working-directory: reservedhub-frontend
+        run: npm ci
+
+      - name: Frontend dependency audit
+        working-directory: reservedhub-frontend
+        run: npm audit --audit-level=high --json > ../reports/npm-audit-frontend.json || true
+
+      - name: Build frontend
+        working-directory: reservedhub-frontend
+        run: npm run build
+
+      - name: SAST with Semgrep
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/src" \
+            semgrep/semgrep \
+            semgrep scan --config p/ci --json --output /src/reports/semgrep-report.json /src || true
+
+      - name: SAST IaC with Checkov
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/repo" \
+            bridgecrew/checkov \
+            --directory /repo \
+            --framework terraform,kubernetes,dockerfile \
+            --output cli \
+            --output json \
+            --output-file-path /repo/reports/checkov-report.json || true
+
+      - name: Validate Docker Compose file
+        run: docker compose config
+
+      - name: Build backend Docker image
+        run: docker build -t preservedhub-backend:latest ./backend
+
+      - name: Build frontend Docker image
+        run: docker build -t preservedhub-frontend:latest ./reservedhub-frontend
+
+      - name: Create Kubernetes cluster with Kind
+        uses: helm/kind-action@v1
+
+      - name: Load images into Kind
+        run: |
+          kind load docker-image preservedhub-backend:latest
+          kind load docker-image preservedhub-frontend:latest
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/mongodb.yaml
+          kubectl apply -f k8s/backend.yaml
+          kubectl apply -f k8s/frontend.yaml
+
+      - name: Wait for Kubernetes deployments
+        run: |
+          kubectl rollout status deployment/mongodb -n preservedhub --timeout=180s
+          kubectl rollout status deployment/preservedhub-backend -n preservedhub --timeout=180s
+          kubectl rollout status deployment/preservedhub-frontend -n preservedhub --timeout=180s
+
+      - name: Export Kubernetes evidence
+        run: |
+          kubectl get all -n preservedhub -o wide > reports/kubernetes-resources.txt
+          kubectl describe pods -n preservedhub > reports/kubernetes-pods-description.txt
+
+      - name: Port forward backend and frontend
+        run: |
+          kubectl port-forward -n preservedhub service/backend-service 4000:4000 > reports/backend-port-forward.log 2>&1 &
+          kubectl port-forward -n preservedhub service/frontend-service 8080:80 > reports/frontend-port-forward.log 2>&1 &
+          sleep 15
+
+      - name: Backend health check
+        run: |
+          curl -f http://localhost:4000/api/health | tee reports/backend-health.txt
+
+      - name: DAST with OWASP ZAP
+        run: |
+          docker run --rm --network host \
+            -v "${{ github.workspace }}/reports:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+            -t http://127.0.0.1:8080 \
+            -J zap-report.json \
+            -r zap-report.html || true
+
+      - name: Upload DevSecOps reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: devsecops-reports
+          path: reports/
