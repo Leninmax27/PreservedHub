@@ -1,0 +1,50 @@
+﻿services:
+  mongo:
+    image: mongo:7
+    container_name: preservedhub-mongo-compose
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - preservedhub_mongo_data:/data/db
+    networks:
+      - preservedhub-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: preservedhub-backend
+    restart: unless-stopped
+    environment:
+      PORT: 4000
+      MONGO_URI: mongodb://mongo:27017/preservedhub
+      JWT_SECRET: preservedhub_secret_devsecops
+    ports:
+      - "4000:4000"
+    depends_on:
+      - mongo
+    networks:
+      - preservedhub-network
+
+  frontend:
+    build:
+      context: ./reservedhub-frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:4000/api
+    container_name: preservedhub-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - preservedhub-network
+
+volumes:
+  preservedhub_mongo_data:
+
+networks:
+  preservedhub-network:
+    driver: bridge
